@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約カレンダー</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            height: auto;
+        }
+        .calendar-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 1000px;
+            height: 80vh;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-header button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .calendar-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            text-align: center;
+            height: 100%;
+            align-content: stretch;
+        }
+        .day-name {
+            font-weight: bold;
+            color: #555;
+            padding-bottom: 1px;
+        }
+        .day {
+            padding: 20px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .day:hover:not(.empty):not(.selected) {
+            background-color: #e2e6ea;
+        }
+        .day.selected {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .day.empty {
+            visibility: hidden;
+        }
+        .day.saturday {
+            background-color: #e0f7ff;
+        }
+        .day.sunday, .day.holiday {
+            background-color: #ffebee;
+        }
+        .day.has-booking {
+            background-color: #f0f8ff;
+            border: 2px solid #007bff;
+        }
+        .booking-summary {
+            font-size: 10px;
+            color: #333;
+            margin-top: 5px;
+            line-height: 1.2;
+        }
+        .booking-item {
+            cursor: pointer;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .booking-item:hover {
+            background-color: #e9ecef;
+        }
+        .booking-summary p {
+            margin: 0;
+            padding: 0;
+            font-size: 10px;
+            line-height: 1.2;
+        }
+        #deleteBtn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #bookingModal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 80%;
+            max-width: 400px;
+            position: relative;
+        }
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover, .close-btn:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        form label, form input, form textarea, form button {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        form input, form textarea {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        form button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button id="prevBtn">&lt;</button>
+            <h2 id="currentMonth"></h2>
+            <button id="nextBtn">&gt;</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+            <div class="day-name">日</div>
+            <div class="day-name">月</div>
+            <div class="day-name">火</div>
+            <div class="day-name">水</div>
+            <div class="day-name">木</div>
+            <div class="day-name">金</div>
+            <div class="day-name">土</div>
+        </div>
+    </div>
+
+    <div id="bookingModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>予約/メモ入力</h3>
+            <p id="selectedDateText"></p>
+            <div id="existingBookings"></div>
+            <form id="bookingForm">
+                <label for="bookingTime">時間:</label>
+                <input type="time" id="bookingTime" name="bookingTime" required>
+                <label for="endTime">終了時間:</label>
+                <input type="time" id="endTime" name="endTime" required>
+                <label for="bookingMemo">メモ:</label>
+                <textarea id="bookingMemo" name="bookingMemo" rows="4" required></textarea>
+                <button type="submit">保存</button>
+                <button type="button" id="deleteBtn">削除</button>
+            </form>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyAUtNuIURMpK1gEQmMSpL5t_mF5HEO0D28",
+          authDomain: "karenda-f70a0.firebaseapp.com",
+          projectId: "karenda-f70a0",
+          storageBucket: "karenda-f70a0.firebasestorage.app",
+          messagingSenderId: "52648810689",
+          appId: "1:52648810689:web:d294bf9ed9b74ecd36dc40",
+          measurementId: "G-JK0JD8F7X8"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore();
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const currentMonthEl = document.getElementById('currentMonth');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const bookingModal = document.getElementById('bookingModal');
+            const closeBtn = document.querySelector('.close-btn');
+            const selectedDateText = document.getElementById('selectedDateText');
+            const bookingForm = document.getElementById('bookingForm');
+            const deleteBtn = document.getElementById('deleteBtn');
+            const bookingMemo = document.getElementById('bookingMemo');
+            const bookingTime = document.getElementById('bookingTime');
+            const endTime = document.getElementById('endTime');
+
+            let currentDate = new Date();
+            let savedBookings = {}; 
+            let editingBookingIndex = null;
+
+            async function fetchBookingsFromFirebase() {
+                const bookingsCollection = collection(db, "bookings");
+                const bookingsSnapshot = await getDocs(bookingsCollection);
+                const fetchedBookings = {};
+                bookingsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    fetchedBookings[doc.id] = data.bookings;
+                });
+                savedBookings = fetchedBookings;
+            }
+
+            async function renderCalendar() {
+                await fetchBookingsFromFirebase();
+                
+                calendarGrid.innerHTML = `
+                    <div class="day-name">日</div>
+                    <div class="day-name">月</div>
+                    <div class="day-name">火</div>
+                    <div class="day-name">水</div>
+                    <div class="day-name">木</div>
+                    <div class="day-name">金</div>
+                    <div class="day-name">土</div>
+                `;
+
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                currentMonthEl.textContent = `${year}年 ${month + 1}月`;
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+                for (let i = 0; i < firstDayOfMonth; i++) {
+                    const emptyDay = document.createElement('div');
+                    emptyDay.classList.add('day', 'empty');
+                    calendarGrid.appendChild(emptyDay);
+                }
+
+                for (let day = 1; day <= lastDayOfMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.classList.add('day');
+                    dayEl.textContent = day;
+                    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    dayEl.dataset.date = formattedDate;
+
+                    const dayOfWeek = new Date(year, month, day).getDay();
+                    if (dayOfWeek === 0) {
+                        dayEl.classList.add('sunday');
+                    } else if (dayOfWeek === 6) {
+                        dayEl.classList.add('saturday');
+                    }
+                    const holidays = ["2025-01-01", "2025-01-13", "2025-02-11", "2025-02-24", "2025-03-20", "2025-04-29", "2025-05-03", "2025-05-05", "2025-05-06", "2025-07-21", "2025-08-11", "2025-09-15", "2025-09-23", "2025-10-13", "2025-11-03", "2025-11-24", "2025-12-23"];
+                    if (holidays.includes(formattedDate)) {
+                        dayEl.classList.add('holiday');
+                    }
+
+                    if (savedBookings[formattedDate] && savedBookings[formattedDate].length > 0) {
+                        dayEl.classList.add('has-booking');
+                        const bookings = savedBookings[formattedDate];
+                        const summaryDiv = document.createElement('div');
+                        summaryDiv.classList.add('booking-summary');
+                        bookings.forEach(booking => {
+                            const bookingEl = document.createElement('p');
+                            bookingEl.textContent = `${booking.startTime} - ${booking.endTime} ${booking.memo}`;
+                            bookingEl.classList.add('individual-booking');
+                            summaryDiv.appendChild(bookingEl);
+                        });
+                        dayEl.appendChild(summaryDiv);
+                    }
+                    calendarGrid.appendChild(dayEl);
+                }
+            }
+            
+            calendarGrid.addEventListener('click', (e) => {
+                const target = e.target.closest('.day');
+                if (target && !target.classList.contains('empty')) {
+                    const selectedDate = target.dataset.date;
+                    selectedDateText.textContent = `${selectedDate} の予約/メモ`;
+                    const selectedDay = document.querySelector('.day.selected');
+                    if (selectedDay) {
+                        selectedDay.classList.remove('selected');
+                    }
+                    target.classList.add('selected');
+                    bookingForm.reset();
+                    deleteBtn.style.display = 'none';
+                    editingBookingIndex = null;
+                    
+                    if (savedBookings[selectedDate]) {
+                        const existingBookings = savedBookings[selectedDate].map(
+                            (booking, index) => `<p data-index="${index}" class="booking-item">${booking.startTime} - ${booking.endTime} ${booking.memo}</p>`
+                        ).join('');
+                        document.getElementById('existingBookings').innerHTML = existingBookings;
+                    } else {
+                        document.getElementById('existingBookings').innerHTML = '';
+                    }
+                    bookingModal.style.display = 'flex';
+                }
+            });
+            
+            document.getElementById('existingBookings').addEventListener('click', (e) => {
+                const targetItem = e.target.closest('.booking-item');
+                if (targetItem) {
+                    const index = parseInt(targetItem.dataset.index);
+                    const selectedDate = document.querySelector('.day.selected').dataset.date;
+                    const booking = savedBookings[selectedDate][index];
+                    bookingTime.value = booking.startTime;
+                    endTime.value = booking.endTime;
+                    bookingMemo.value = booking.memo;
+                    deleteBtn.style.display = 'block';
+                    editingBookingIndex = index;
+                }
+            });
+
+            closeBtn.addEventListener('click', () => {
+                bookingModal.style.display = 'none';
+                const selectedDay = document.querySelector('.day.selected');
+                if (selectedDay) {
+                    selectedDay.classList.remove('selected');
+                }
+            });
+
+            bookingForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const selectedDate = document.querySelector('.day.selected').dataset.date;
+                const startTime = bookingTime.value;
+                const endT = endTime.value;
+                const memo = bookingMemo.value;
+
+                if (startTime >= endT) {
+                    alert('終了時間は開始時間より後に設定してください。');
+                    return;
+                }
+
+                const isTimeConflict = savedBookings[selectedDate] && savedBookings[selectedDate].some((booking, index) => {
+                    if (index === editingBookingIndex) return false;
+                    const existingStart = new Date(`${selectedDate}T${booking.startTime}:00`);
+                    const existingEnd = new Date(`${selectedDate}T${booking.endTime}:00`);
+                    const newStart = new Date(`${selectedDate}T${startTime}:00`);
+                    const newEnd = new Date(`${selectedDate}T${endT}:00`);
+                    return (
+                        (newStart < existingEnd && newEnd > existingStart)
+                    );
+                });
+
+                if (isTimeConflict) {
+                    alert('この時間帯は既に予約が入っています。');
+                    return;
+                }
+                
+                const newBooking = { startTime: startTime, endTime: endT, memo: memo };
+
+                if (editingBookingIndex !== null) {
+                    savedBookings[selectedDate][editingBookingIndex] = newBooking;
+                    editingBookingIndex = null;
+                } else {
+                    if (!savedBookings[selectedDate]) {
+                        savedBookings[selectedDate] = [];
+                    }
+                    savedBookings[selectedDate].push(newBooking);
+                }
+
+                savedBookings[selectedDate].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                const dateDocRef = doc(db, "bookings", selectedDate);
+                await setDoc(dateDocRef, { bookings: savedBookings[selectedDate] });
+
+                alert(`${selectedDate} にメモを保存しました。`);
+                bookingModal.style.display = 'none';
+                renderCalendar();
+            });
+
+            deleteBtn.addEventListener('click', async () => {
+                const selectedDate = document.querySelector('.day.selected').dataset.date;
+                if (editingBookingIndex !== null) {
+                    savedBookings[selectedDate].splice(editingBookingIndex, 1);
+                }
+                const dateDocRef = doc(db, "bookings", selectedDate);
+                if (savedBookings[selectedDate].length === 0) {
+                    delete savedBookings[selectedDate];
+                    await deleteDoc(dateDocRef);
+                } else {
+                    await setDoc(dateDocRef, { bookings: savedBookings[selectedDate] });
+                }
+                alert('予約/メモを削除しました。');
+                editingBookingIndex = null;
+                bookingModal.style.display = 'none';
+                renderCalendar();
+            });
+
+            closeBtn.addEventListener('click', () => {
+                bookingModal.style.display = 'none';
+                const selectedDay = document.querySelector('.day.selected');
+                if (selectedDay) {
+                    selectedDay.classList.remove('selected');
+                }
+            });
+
+            prevBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+            
+            renderCalendar();
+        });
+    </script>
+</body>
+</html>
