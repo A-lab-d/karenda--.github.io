@@ -47,7 +47,7 @@
             grid-template-columns: repeat(7, 1fr);
             gap: 2px;
             text-align: center;
-            height: 70%;
+            height: 80%;
             align-content: stretch;
         }
         .day-name {
@@ -199,9 +199,9 @@
             <div id="existingBookings"></div>
             <form id="bookingForm">
                 <label for="bookingTime">時間:</label>
-                <input type="time" id="bookingTime" name="bookingTime" required step="600">
+                <input type="time" id="bookingTime" name="bookingTime" required >
                 <label for="endTime">終了時間:</label>
-                <input type="time" id="endTime" name="endTime" required step="600">
+                <input type="time" id="endTime" name="endTime" required >
                 <label for="bookingMemo">メモ:</label>
                 <textarea id="bookingMemo" name="bookingMemo" rows="4" required></textarea>
                 <button type="submit">保存</button>
@@ -455,6 +455,7 @@
 </body>
 
 </html>
+
 
 
 
