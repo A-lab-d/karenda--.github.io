@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約カレンダー</title>
     <style>
+        /* CSSコードの統合 */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -20,7 +21,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: 90%;
-            max-width: 800px;
+            max-width: 1000px; /* 最大幅を1000pxに調整 */
             height: 80vh;
         }
         .calendar-header {
@@ -47,7 +48,7 @@
             grid-template-columns: repeat(7, 1fr);
             gap: 2px;
             text-align: center;
-            height: 80%;
+            height: 80%; /* 高さを調整 */
             align-content: stretch;
         }
         .day-name {
@@ -72,22 +73,26 @@
         .day.empty {
             visibility: hidden;
         }
+        /* 曜日と祝日の色分け */
         .day.saturday {
             background-color: #e0f7ff;
         }
         .day.sunday, .day.holiday {
             background-color: #ffebee;
         }
+        /* 予約済みの日付 */
         .day.has-booking {
             background-color: #f0f8ff;
             border: 2px solid #007bff;
         }
+        /* 予定の概要表示 */
         .booking-summary {
             font-size: 10px;
             color: #333;
             margin-top: 5px;
             line-height: 1.2;
         }
+        /* モーダル内の予定一覧 */
         .booking-item {
             cursor: pointer;
             padding: 5px;
@@ -113,6 +118,7 @@
             cursor: pointer;
             margin-top: 10px;
         }
+        /* モーダルウィンドウのスタイル */
         #bookingModal {
             display: none;
             position: fixed;
@@ -173,13 +179,10 @@
 
     <div class="calendar-container">
      <div class="calendar-header">
-    <h3>E402ドラフト予約</h3>
-
         <button id="prevBtn">&lt;</button>
         <h2 id="currentMonth"></h2>
         <button id="nextBtn">&gt;</button>
-
-</div>
+    </div>
         <div class="calendar-grid" id="calendarGrid">
             <div class="day-name">日</div>
             <div class="day-name">月</div>
@@ -198,7 +201,10 @@
             <p id="selectedDateText"></p>
             <div id="existingBookings"></div>
             <form id="bookingForm">
-                <label for="bookingTime">時間:</label>
+                <label for="bookingTitle">予定名:</label>
+                <input type="text" id="bookingTitle" name="bookingTitle" required>
+
+                <label for="bookingTime">開始時間:</label>
                 <input type="time" id="bookingTime" name="bookingTime" required >
                 <label for="endTime">終了時間:</label>
                 <input type="time" id="endTime" name="endTime" required >
@@ -236,6 +242,8 @@
             const selectedDateText = document.getElementById('selectedDateText');
             const bookingForm = document.getElementById('bookingForm');
             const deleteBtn = document.getElementById('deleteBtn');
+            
+            const bookingTitle = document.getElementById('bookingTitle'); 
             const bookingMemo = document.getElementById('bookingMemo');
             const bookingTime = document.getElementById('bookingTime');
             const endTime = document.getElementById('endTime');
@@ -305,7 +313,8 @@
                         summaryDiv.classList.add('booking-summary');
                         bookings.forEach(booking => {
                             const bookingEl = document.createElement('p');
-                            bookingEl.textContent = `${booking.startTime} - ${booking.endTime} ${booking.memo}`;
+                            // 💡 予定名と開始時間のみを表示
+                            bookingEl.textContent = `${booking.startTime} ${booking.title}`; 
                             bookingEl.classList.add('individual-booking');
                             summaryDiv.appendChild(bookingEl);
                         });
@@ -330,8 +339,12 @@
                     editingBookingIndex = null;
                     
                     if (savedBookings[selectedDate]) {
+                        // 💡 予定名、開始時間、終了時間、メモすべてをモーダルに表示
                         const existingBookings = savedBookings[selectedDate].map(
-                            (booking, index) => `<p data-index="${index}" class="booking-item">${booking.startTime} - ${booking.endTime} ${booking.memo}</p>`
+                            (booking, index) => `<p data-index="${index}" class="booking-item">
+                                                    ${booking.startTime} - ${booking.endTime} 
+                                                    <span style="font-weight: bold;">${booking.title}</span>: ${booking.memo}
+                                                </p>`
                         ).join('');
                         document.getElementById('existingBookings').innerHTML = existingBookings;
                     } else {
@@ -340,13 +353,16 @@
                     bookingModal.style.display = 'flex';
                 }
             });
-            
+
+
             document.getElementById('existingBookings').addEventListener('click', (e) => {
                 const targetItem = e.target.closest('.booking-item');
                 if (targetItem) {
                     const index = parseInt(targetItem.dataset.index);
                     const selectedDate = document.querySelector('.day.selected').dataset.date;
                     const booking = savedBookings[selectedDate][index];
+                    
+                    bookingTitle.value = booking.title; 
                     bookingTime.value = booking.startTime;
                     endTime.value = booking.endTime;
                     bookingMemo.value = booking.memo;
@@ -366,6 +382,7 @@
             bookingForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const selectedDate = document.querySelector('.day.selected').dataset.date;
+                const title = bookingTitle.value; 
                 const startTime = bookingTime.value;
                 const endT = endTime.value;
                 const memo = bookingMemo.value;
@@ -391,7 +408,7 @@
                     return;
                 }
                 
-                const newBooking = { startTime: startTime, endTime: endT, memo: memo };
+                const newBooking = { title: title, startTime: startTime, endTime: endT, memo: memo };
 
                 if (editingBookingIndex !== null) {
                     savedBookings[selectedDate][editingBookingIndex] = newBooking;
@@ -408,7 +425,7 @@
                 const dateDocRef = doc(db, "bookings", selectedDate);
                 await setDoc(dateDocRef, { bookings: savedBookings[selectedDate] });
 
-                alert(`${selectedDate} にメモを保存しました。`);
+                alert(`${selectedDate} に ${title} の予定を保存しました。`);
                 bookingModal.style.display = 'none';
                 renderCalendar();
             });
@@ -453,9 +470,4 @@
         });
     </script>
 </body>
-
 </html>
-
-
-
-
