@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約カレンダー</title>
     <style>
-        /* CSSコードの統合 */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -21,7 +20,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: 90%;
-            max-width: 1000px; /* 最大幅を1000pxに調整 */
+            max-width: 1000px;
             height: 80vh;
         }
         .calendar-header {
@@ -48,7 +47,7 @@
             grid-template-columns: repeat(7, 1fr);
             gap: 2px;
             text-align: center;
-            height: 80%; /* 高さを調整 */
+            height: 80%;
             align-content: stretch;
         }
         .day-name {
@@ -56,11 +55,14 @@
             color: #555;
             padding-bottom: 1px;
         }
+        
         .day {
-            padding: 20px 0;
+            padding: 5px 0;
+            min-height: 60px;
             cursor: pointer;
             border-radius: 4px;
             transition: background-color 0.2s;
+            position: relative;
         }
         .day:hover:not(.empty):not(.selected) {
             background-color: #e2e6ea;
@@ -73,42 +75,52 @@
         .day.empty {
             visibility: hidden;
         }
-        /* 曜日と祝日の色分け */
         .day.saturday {
             background-color: #e0f7ff;
         }
         .day.sunday, .day.holiday {
             background-color: #ffebee;
         }
-        /* 予約済みの日付 */
         .day.has-booking {
             background-color: #f0f8ff;
             border: 2px solid #007bff;
+            padding: 10px 0;
         }
-        /* 予定の概要表示 */
+        
         .booking-summary {
             font-size: 10px;
             color: #333;
             margin-top: 5px;
             line-height: 1.2;
         }
-        /* モーダル内の予定一覧 */
+        .booking-summary p {
+            margin: 0;
+            padding: 0;
+            font-size: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 5px;
+        }
+        
+        .day.many-bookings .booking-summary {
+            max-height: calc(1.2em * 2 + 5px);
+            overflow: hidden; 
+        }
+        
         .booking-item {
             cursor: pointer;
             padding: 5px;
             background-color: #f8f9fa;
             border-radius: 4px;
             margin-bottom: 5px;
+            text-align: left;
         }
         .booking-item:hover {
             background-color: #e9ecef;
         }
-        .booking-summary p {
-            margin: 0;
-            padding: 0;
-            font-size: 10px;
-            line-height: 1.2;
-        }
+        
         #deleteBtn {
             background-color: #dc3545;
             color: white;
@@ -118,7 +130,6 @@
             cursor: pointer;
             margin-top: 10px;
         }
-        /* モーダルウィンドウのスタイル */
         #bookingModal {
             display: none;
             position: fixed;
@@ -201,7 +212,7 @@
             <p id="selectedDateText"></p>
             <div id="existingBookings"></div>
             <form id="bookingForm">
-                <label for="bookingTitle">予約者名(研究室名):</label>
+                <label for="bookingTitle">予約者(研究室):</label>
                 <input type="text" id="bookingTitle" name="bookingTitle" required>
 
                 <label for="bookingTime">開始時間:</label>
@@ -209,7 +220,7 @@
                 <label for="endTime">終了時間:</label>
                 <input type="time" id="endTime" name="endTime" required >
                 <label for="bookingMemo">メモ:</label>
-                <textarea id="bookingMemo" name="bookingMemo" rows="4" required></textarea>
+                <textarea id="bookingMemo" name="bookingMemo" rows="4"></textarea> 
                 <button type="submit">保存</button>
                 <button type="button" id="deleteBtn">削除</button>
             </form>
@@ -307,13 +318,20 @@
                     }
 
                     if (savedBookings[formattedDate] && savedBookings[formattedDate].length > 0) {
-                        dayEl.classList.add('has-booking');
                         const bookings = savedBookings[formattedDate];
+                        
+                        // 3件以上の場合はクラスを追加し、CSSで高さを制限します
+                        if (bookings.length >= 3) {
+                             dayEl.classList.add('many-bookings');
+                        }
+                        
+                        dayEl.classList.add('has-booking');
+                        
                         const summaryDiv = document.createElement('div');
                         summaryDiv.classList.add('booking-summary');
                         bookings.forEach(booking => {
                             const bookingEl = document.createElement('p');
-                            // 💡 予定名と開始時間のみを表示
+                            // 予約者名と開始時間のみを表示
                             bookingEl.textContent = `${booking.startTime} ${booking.title}`; 
                             bookingEl.classList.add('individual-booking');
                             summaryDiv.appendChild(bookingEl);
@@ -339,12 +357,12 @@
                     editingBookingIndex = null;
                     
                     if (savedBookings[selectedDate]) {
-                        // 💡 予定名、開始時間、終了時間、メモすべてをモーダルに表示
+                        // モーダルにはすべての情報を表示
                         const existingBookings = savedBookings[selectedDate].map(
                             (booking, index) => `<p data-index="${index}" class="booking-item">
                                                     ${booking.startTime} - ${booking.endTime} 
-                                                    <span style="font-weight: bold;">${booking.title}</span>: ${booking.memo}
-                                                </p>`
+                                                    <span style="font-weight: bold;">${booking.title}</span>: ${booking.memo || '(メモなし)'}
+                                                </p>` // 💡 メモが空の場合は「(メモなし)」を表示
                         ).join('');
                         document.getElementById('existingBookings').innerHTML = existingBookings;
                     } else {
@@ -385,10 +403,17 @@
                 const title = bookingTitle.value; 
                 const startTime = bookingTime.value;
                 const endT = endTime.value;
-                const memo = bookingMemo.value;
+                // 💡 メモは空欄を許容 (値が空文字列になる)
+                const memo = bookingMemo.value; 
 
                 if (startTime >= endT) {
                     alert('終了時間は開始時間より後に設定してください。');
+                    return;
+                }
+                
+                // 予約者名(title)が空の場合はエラーを出す (HTMLでrequiredを設定済み)
+                if (!title) {
+                    alert('予約者名(研究室)は必須です。');
                     return;
                 }
 
@@ -425,7 +450,7 @@
                 const dateDocRef = doc(db, "bookings", selectedDate);
                 await setDoc(dateDocRef, { bookings: savedBookings[selectedDate] });
 
-                alert(`${selectedDate} に ${title} の予定を保存しました。`);
+                alert(`${selectedDate} に ${title} の予約を保存しました。`);
                 bookingModal.style.display = 'none';
                 renderCalendar();
             });
@@ -471,4 +496,3 @@
     </script>
 </body>
 </html>
-
